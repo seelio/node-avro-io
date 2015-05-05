@@ -161,6 +161,18 @@ describe('IO', function(){
                 block.write(new Buffer([0x94, 0x02]));
                 decoder.readLong().should.equal(138);
             })
+
+            // http://lucene.apache.org/core/3_5_0/fileformats.html#VInt
+            it('should decode and return a positive long using variable-length + zigzag', function () {
+                block.write(new Buffer([0x80, 0xa5, 0xd6, 0xfb, 0xfa, 0x52]));
+                decoder.readLong().should.equal(1425253517632);
+            })
+
+            it('should decode and return a negative long using variable-length + zigzag', function () {
+                block.write(new Buffer([0x81, 0xa5, 0xd6, 0xfb, 0xfa, 0x52]));
+                decoder.readLong().should.equal(-1425253517633);
+            })
+
         })
         describe('readFloat()', function(){
             it('should decode and return a 32bit float', function(){
