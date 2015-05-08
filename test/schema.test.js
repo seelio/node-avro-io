@@ -38,10 +38,18 @@ describe('Schema()', function(){
                 Avro.Schema({"type":"unrecognized"});
             }).should.throwError();
         })
-        it('should return a UnionSchema if an array is passwd as a type', function(){
-            var schema = Avro.Schema([ "string", "int", "null"]);
+        it('should return a UnionSchema if an array is passed as a type', function(){
+            var schema = Avro.Schema([ "string", "int", "null"], 'mynamespace');
             schema.should.be.an.instanceof(Avro.UnionSchema);
             schema.type.should.equal("union");
+            schema.namespace.should.equal('mynamespace');
+            schema.schemas.length.should.equal(3);
+            schema.schemas[0].should.be.an.instanceof(Avro.PrimitiveSchema);
+            schema.schemas[0].type.should.equal('string');
+            schema.schemas[1].should.be.an.instanceof(Avro.PrimitiveSchema);
+            schema.schemas[1].type.should.equal('int');
+            schema.schemas[2].should.be.an.instanceof(Avro.PrimitiveSchema);
+            schema.schemas[2].type.should.equal('null');
         });
         it('should throw an error if an empty array of unions is passed', function(){
             (function() {
@@ -72,6 +80,7 @@ describe('Schema()', function(){
             });
             schema.should.be.an.instanceof(Avro.RecordSchema);
             schema.type.should.equal("record");
+            schema.name.should.equal("myrecord");
             schema.fields.should.be.an.instanceof(Object);
             _.size(schema.fields).should.equal(3);
         });
@@ -96,6 +105,7 @@ describe('Schema()', function(){
             });
             schema.should.be.an.instanceof(Avro.ArraySchema);
             schema.items.should.be.an.instanceof(Avro.PrimitiveSchema);
+            schema.items.type.should.equal('long');
             schema.type.should.equal("array");
         });
         it('should return a FixedSchema if an object is passed with a type "fixed"', function(){
