@@ -80,6 +80,93 @@ describe('Block()', function(){
             block.write(0x55);
             block.flush();
             block.length.should.equal(0);
+            block.offset.should.equal(0);
+        });
+    });
+    describe('_bufferSize()', function(){
+        it('should return the size we passed to it', function(){
+            var block = new DataFile.Block();
+            block._bufferSize(5).should.equal(5);
+        });
+        it('should double the existing buffer size', function(){
+            var block = new DataFile.Block(256);
+            block._bufferSize(128).should.equal(512);
+        });
+        it('should increase the buffer size by the size we pass in', function(){
+            var block = new DataFile.Block(256);
+            block._bufferSize(512).should.equal(768);
+        });
+        it('should return the sum of the num of bytes written and requested', function(){
+            var block = new DataFile.Block(16384);
+            block.write(0x25);
+            block._bufferSize(16).should.equal(17);
+        });
+    });
+    describe('_canReUseBuffer()', function(){
+        it('should indicate whether an empty buffer can accommodate the requested size', function(){
+            var block = new DataFile.Block();
+            block._canReUseBuffer(0).should.equal(true);
+            block._canReUseBuffer(5).should.equal(false);
+        });
+        it('should indicate whether a partially full buffer can accommodate the requested size', function(){
+            var block = new DataFile.Block(8);
+            block.write([0x23,0x24,0x25,0x26,0x27]);
+            block._canReUseBuffer(2).should.equal(true);
+            block._canReUseBuffer(4).should.equal(false);
+            block.read(3);
+            block._canReUseBuffer(5).should.equal(true);
+            block._canReUseBuffer(7).should.equal(false);
+        });
+    });
+    describe('_resizeIfRequired()', function(){
+        it('should allocate a new buffer', function(){
+            var block = new DataFile.Block();
+            var buf1 = block._buffer;
+            block._resizeIfRequired(8);
+            var buf2 = block._buffer;
+            buf1.should.not.equal(buf2);
+            buf1.length.should.equal(0);
+            buf2.length.should.equal(8);
+        });
+        it('should allocate a new buffer and copy over old buffer contents', function(){
+            var block = new DataFile.Block(8);
+            block.write([0x53, 0x65, 0x65, 0x6c, 0x69, 0x6f]);
+            block._resizeIfRequired(4);
+            block._buffer.length.should.equal(16);
+            block.isEqual([0x53, 0x65, 0x65, 0x6c, 0x69, 0x6f]).should.be.true;
+        });
+        it('should reuse existing buffer', function(){
+            var block = new DataFile.Block(16);
+            var buf1 = block._buffer;
+            block.write([0x53, 0x65, 0x65, 0x6c, 0x69, 0x6f]);
+            block._resizeIfRequired(4);
+            block._buffer.should.equal(buf1);
+
+            block.read(3);
+            block._resizeIfRequired(4);
+            block._buffer.should.equal(buf1);
+            block.isEqual([0x6c, 0x69, 0x6f]).should.be.true;
+            block.offset.should.equal(0);
+            block.remainingBytes.should.equal(3);
+
+            block.read(3);
+            block._resizeIfRequired(4);
+            block._buffer.should.equal(buf1);
+            block.offset.should.equal(0);
+            block.remainingBytes.should.equal(0);
+            block.length.should.equal(0);
+        });
+        it('should create a new buffer even though existing buffer is big enough', function(){
+            var block = new DataFile.Block(16);
+            var buf1 = block._buffer;
+            block.write([0x53, 0x65, 0x65, 0x6c, 0x69, 0x6f]);
+            block.reUseBuffer = false;
+            block._resizeIfRequired(4);
+            var buf2 = block._buffer;
+            buf1.should.not.equal(buf2);
+            buf2.length.should.equal(16);
+            block.offset.should.equal(0);
+            block.length.should.equal(6);
         });
     });
     describe('write()', function(){
@@ -87,13 +174,28 @@ describe('Block()', function(){
             var block = new DataFile.Block();
             block.write(0x20);
             block.isEqual([0x20]).should.be.true;
+            block.offset.should.equal(0);
+            block.length.should.equal(1);
+            block.remainingBytes.should.equal(1);
         });
         it('should write an array of bytes into the buffer', function() {
             var block = new DataFile.Block();
             var bArray = [0x10, 0x20, 0x30, 0x40, 0x50, 0x60];
             block.write(bArray);
             block.isEqual(bArray).should.be.true;
-        })
+            block.offset.should.equal(0);
+            block.length.should.equal(6);
+            block.remainingBytes.should.equal(6);
+        });
+        it('should write the contents of a Buffer into the buffer', function() {
+            var block = new DataFile.Block();
+            var buf1 = new Buffer([0x53, 0x65, 0x65, 0x6c, 0x69, 0x6f]);
+            block.write(buf1);
+            block.isEqual(buf1).should.be.true;
+            var buf2 = new Buffer([0x60, 0x61, 0x62]);
+            block.write(buf2);
+            block.isEqual(Buffer.concat([buf1, buf2])).should.be.true;
+        });
     });
     describe('skip()', function(){
         it('should skip n bytes of the block', function(){
@@ -111,7 +213,70 @@ describe('Block()', function(){
                 block.skip(7);                
             }).should.throwError();
         });
-    })
+    });
+    describe('read()', function(){
+        it('should throw an error when trying to read more bytes than exist', function(){
+            (function() {
+                var block = new DataFile.Block(32);
+                block.read(8);
+            }).should.throwError();
+        });
+        it('should throw an error when passing in a negative size value', function(){
+            (function() {
+                var block = new DataFile.Block(32);
+                block.read(-3);
+            }).should.throwError();
+        });
+        it('should return the next byte when passed 1', function(){
+            var block = new DataFile.Block(32);
+            block.write([0x53, 0x65, 0x65, 0x6c, 0x69, 0x6f]);
+            block.read(1).should.equal(0x53);
+            block.read(1).should.equal(0x65);
+            block.read(1).should.equal(0x65);
+            block.read(1).should.equal(0x6c);
+            block.read(1).should.equal(0x69);
+            block.read(1).should.equal(0x6f);
+            (function() {
+                block.read(1);
+            }).should.throwError();
+        });
+        it('should return n bytes when called via read(n)', function(){
+            var block = new DataFile.Block(32);
+            block.write([0x53, 0x65, 0x65, 0x6c, 0x69, 0x6f]);
+            var buf = block.read(2);
+            buf.length.should.equal(2);
+            buf[0].should.equal(0x53);
+            buf[1].should.equal(0x65);
+            buf = block.read(4);
+            buf.length.should.equal(4);
+            buf[0].should.equal(0x65);
+            buf[1].should.equal(0x6c);
+            buf[2].should.equal(0x69);
+            buf[3].should.equal(0x6f);
+        });
+    });
+    describe('isEqual()', function(){
+        it('should correctly when the passed in array/buffer is the same', function(){
+            var block = DataFile.Block(8);
+            block.write([0x53, 0x65, 0x65, 0x6c, 0x69, 0x6f]);
+            block.isEqual([0x53, 0x65, 0x65, 0x6c, 0x69, 0x6f]).should.equal.true;
+            block.isEqual([0x53, 0x65, 0x65]).should.equal.false;
+            block.isEqual(new Buffer([0x53, 0x65, 0x65, 0x6c, 0x69, 0x6f])).should.equal.true;
+        });
+        it('should throw an error when neither an array or buffer is passed in', function(){
+            (function() {
+                var block = DataFile.Block(8);
+                block.write([0x53, 0x65, 0x65, 0x6c, 0x69, 0x6f]);
+                block.isEqual(null);
+            }).should.throwError();
+
+            (function() {
+                var block = DataFile.Block(8);
+                block.write([0x53, 0x65, 0x65, 0x6c, 0x69, 0x6f]);
+                block.isEqual(0x53);
+            }).should.throwError();
+        });
+    });
     describe('slice()', function(){
         it('should return a the written part of the Block', function(){
             var block = new DataFile.Block(32);
@@ -122,13 +287,20 @@ describe('Block()', function(){
             var block = new DataFile.Block(32);
             block.write([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]);
             block.slice(2,5).equals(new Buffer([0x03, 0x04, 0x05])).should.be.true;          
-        })
-    })
+        });
+    });
     describe('toBuffer()', function(){
         it('should return a buffer with the contents of the block', function(){
             var block = new DataFile.Block(64);
             block.write([0x11, 0x21, 0x31, 0x41, 0x51, 0x61, 0x71]);
-            block.isEqual([0x11, 0x21, 0x31, 0x41, 0x51, 0x61, 0x71]).should.be.true;
+            var buf1 = block.toBuffer();
+            Buffer.isBuffer(buf1).should.be.true;
+            buf1[0].should.equal(0x11);
+            buf1[1].should.equal(0x21);
+            buf1[2].should.equal(0x31);
+            buf1[3].should.equal(0x41);
+            buf1[4].should.equal(0x51);
+            buf1[5].should.equal(0x61);
         });
     });
 });
