@@ -77,6 +77,17 @@ describe('IO', function(){
                 block.toBuffer()[5].should.equal(82);
             });
 
+            it('should encode a negative long using varint + zigzag encoding', function(){
+                encoder.writeLong(-1425253517633);
+
+                block.toBuffer()[0].should.equal(0x81);
+                block.toBuffer()[1].should.equal(0xa5);
+                block.toBuffer()[2].should.equal(0xd6);
+                block.toBuffer()[3].should.equal(0xfb);
+                block.toBuffer()[4].should.equal(0xfa);
+                block.toBuffer()[5].should.equal(0x52);
+            });
+
             it('should encode a long that requires 62 bits using variable-leng + zigzag encoding', function(){
                 // number is 6894399586288224639
                 encoder.writeLong(Long.fromBits(0x484f497f, 0x5fadd3e5));
@@ -311,7 +322,7 @@ describe('IO', function(){
             })
         });
         describe('writeEnum()', function(){
-            it('should write an eneration encoded by its index', function(){
+            it('should write an enumeration encoded by its index', function(){
                 var schema = Avro.Schema({
                     "type": "enum",
                     "name": "phonetics",
