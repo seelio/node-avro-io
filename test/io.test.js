@@ -1,6 +1,7 @@
 var _ = require('underscore');
 var should = require('should');
 require('buffertools').extend();
+var Long = require('long');
 
 var libpath = process.env['MOCHA_COV'] ? __dirname + '/../lib-cov/' : __dirname + '/../lib/';
 var IO = require(libpath + 'io');
@@ -75,6 +76,23 @@ describe('IO', function(){
                 block.toBuffer()[4].should.equal(250);
                 block.toBuffer()[5].should.equal(82);
             });
+
+            it('should encode a long that requires 62 bits using variable-leng + zigzag encoding', function(){
+                // number is 6894399586288224639
+                encoder.writeLong(Long.fromBits(0x484f497f, 0x5fadd3e5));
+
+                block.toBuffer()[0].should.equal(0xfe);
+                block.toBuffer()[1].should.equal(0xa5);
+                block.toBuffer()[2].should.equal(0xfa);
+                block.toBuffer()[3].should.equal(0x84);
+                block.toBuffer()[4].should.equal(0xa9);
+                block.toBuffer()[5].should.equal(0xf9);
+                block.toBuffer()[6].should.equal(0xe9);
+                block.toBuffer()[7].should.equal(0xad);
+                block.toBuffer()[8].should.equal(0xbf);
+                block.toBuffer()[9].should.equal(0x01);
+            });
+
         });
         describe('writeFloat()', function(){
             it('should encode a 32bit float in 4 bytes using java floatToIntBits method', function(){
@@ -159,18 +177,24 @@ describe('IO', function(){
         describe('readLong()', function(){
             it('should decode and return a long', function(){
                 block.write(new Buffer([0x94, 0x02]));
-                decoder.readLong().should.equal(138);
+                decoder.readLong().equals(138).should.be.true;
             })
 
             // http://lucene.apache.org/core/3_5_0/fileformats.html#VInt
             it('should decode and return a positive long using variable-length + zigzag', function () {
                 block.write(new Buffer([0x80, 0xa5, 0xd6, 0xfb, 0xfa, 0x52]));
-                decoder.readLong().should.equal(1425253517632);
+                decoder.readLong().equals(1425253517632).should.be.true;
             })
 
             it('should decode and return a negative long using variable-length + zigzag', function () {
                 block.write(new Buffer([0x81, 0xa5, 0xd6, 0xfb, 0xfa, 0x52]));
-                decoder.readLong().should.equal(-1425253517633);
+                decoder.readLong().equals(-1425253517633).should.be.true;
+            })
+
+            it('should decode and return a full 64-bit long using variable-length + zigzag', function () {
+                // number is 6894399586288224639
+                block.write(new Buffer([0xfe, 0xa5, 0xfa, 0x84, 0xa9, 0xf9, 0xe9, 0xad, 0xbf, 0x01]));
+                Long.fromBits(0x484f497f, 0x5fadd3e5).equals(decoder.readLong()).should.be.true;
             })
 
         })
@@ -767,7 +791,7 @@ describe('IO', function(){
             });
             it('should read and decode a long', function(){
                 var result = reader.readData(schema.fieldsHash["testLong"].type, null, decoder);
-                result.should.equal(138);
+                result.equals(138).should.be.true;
             });
             it('should read and decode a float', function(){
                 var result = reader.readData(schema.fieldsHash["testFloat"].type, null, decoder);
@@ -793,7 +817,12 @@ describe('IO', function(){
             });
             it('should read and decode an array', function(){
                 var result = reader.readData(schema.fieldsHash["testArray"].type, null, decoder);
-                result.should.eql([10, -53, 8, -121]);
+                result.should.eql([
+                    Long.fromNumber(10),
+                    Long.fromNumber(-53),
+                    Long.fromNumber(8),
+                    Long.fromNumber(-121)
+                ]);
                 result.length.should.equal(4);
             });
             it('should read and decode a map', function(){
