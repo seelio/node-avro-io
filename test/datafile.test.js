@@ -498,7 +498,7 @@ describe('Reader()', function(){
             var count = 0;
             var fileStream = fs.createReadStream(__dirname + "/data/log.deflate.avro");
 
-            reader = fileStream.pipe(DataFile.Reader());
+            var reader = fileStream.pipe(DataFile.Reader());
             reader
                 .on('error', function(err) {
                     done(err);
@@ -523,7 +523,7 @@ describe('Reader()', function(){
             var count = 0;
             var fileStream = fs.createReadStream(__dirname + "/data/log.snappy.avro");
 
-            reader = fileStream.pipe(DataFile.Reader());
+            var reader = fileStream.pipe(DataFile.Reader());
             reader
                 .on('error', function(err) {
                     done(err);
