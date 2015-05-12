@@ -4,3 +4,4 @@ node_modules/
 test/data/*.avro*
 npm-debug.log
 .*.swp
+test.avro
