@@ -38,9 +38,9 @@ describe('AvroFile', function(){
             var reader = avroFile.open(dataFile, null, { flags: 'r' });
             reader.should.be.an.instanceof(DataFile.Reader);
             reader
-                .on('data', function(data) {
+                .on('readable', function() {
 					//console.error('data()');
-                    data.should.equal("testing");
+                    reader.read().should.equal("testing");
                 })
                 .on('error', function(err) {
 					//console.error('error()');
@@ -334,8 +334,8 @@ describe('Writer()', function(){
         var fileStream = fs.createReadStream(dataFile);
         fileStream.pipe(reader);
         reader
-            .on('data', function(data) {
-                data.should.equal("hello world");
+            .on('readable', function() {
+                reader.read().should.equal("hello world");
             })
             .on('error', function(err) {
                 done(err);
@@ -468,8 +468,8 @@ describe('Writer()', function(){
                         reader.should.be.an.instanceof(DataFile.Reader);
                         var results = [];
                         reader
-                            .on('data', function(data) {
-                                results.push(data);
+                            .on('readable', function() {
+                                results.push(reader.read());
                             })
                             .on('error', function(err) {
                                 console.error(err);
@@ -498,7 +498,8 @@ describe('Reader()', function(){
             var count = 0;
             var fileStream = fs.createReadStream(__dirname + "/data/log.deflate.avro");
 
-            fileStream.pipe(DataFile.Reader())
+            reader = fileStream.pipe(DataFile.Reader());
+            reader
                 .on('error', function(err) {
                     done(err);
                 })
@@ -510,7 +511,8 @@ describe('Reader()', function(){
                     //console.log('\nHeader\n',util.inspect(data, {colors:true, depth:null}));
                     data.should.not
                 })
-                .on('data', function(data) {
+                .on('readable', function() {
+                    reader.read();
                     count++;
                     //console.log(data.time, data.request.path, data.request.body.rememberMe || '[]' , data.response.status);
                 });
@@ -521,7 +523,8 @@ describe('Reader()', function(){
             var count = 0;
             var fileStream = fs.createReadStream(__dirname + "/data/log.snappy.avro");
 
-            fileStream.pipe(DataFile.Reader())
+            reader = fileStream.pipe(DataFile.Reader());
+            reader
                 .on('error', function(err) {
                     done(err);
                 })
@@ -532,7 +535,8 @@ describe('Reader()', function(){
                 .on('header', function(data) {
                     //console.log('\nHeader\n',util.inspect(data, {colors:true, depth:null}));
                 })
-                .on('data', function(data) {
+                .on('readable', function() {
+                    reader.read();
                     count++;
                     //console.log(data.time, data.request.path, data.request.body.rememberMe || '[]' , data.response.status);
                 });
@@ -595,11 +599,11 @@ describe('Reader()', function(){
                     var fileStream = fs.createReadStream(dataFile);
                     var reader = fileStream.pipe(DataFile.Reader());
 
-		            reader.should.be.an.instanceof(DataFile.Reader);
+                    reader.should.be.an.instanceof(DataFile.Reader);
 		            var count = 0;
 		            reader
-						.on('data', function(data) {
-		                	data.should.equal(source[count++]);
+						.on('readable', function() {
+		                	reader.read().should.equal(source[count++]);
 		            	})
 						.on('error', function(err) {
 							console.error(err);
