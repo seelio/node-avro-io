@@ -3,4 +3,5 @@ node_modules/
 .DS_Store
 test/data/*.avro*
 npm-debug.log
+.*.swp
 test.avro

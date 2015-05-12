@@ -26,22 +26,21 @@ describe('AvroFile', function(){
                 .on('error', function(err) {
                     done(err);
                 })
-                .on('close', function() {
+                .on('finish', function() {
                     fs.existsSync(dataFile).should.be.true;
                     done();
                 });
             writer.should.be.an.instanceof(DataFile.Writer)
-            writer
-                .append('testing')
-                .end();
+            writer.write('testing');
+            writer.end();
         });
         it('should open a file for reading and return a reader', function(done){
             var reader = avroFile.open(dataFile, null, { flags: 'r' });
             reader.should.be.an.instanceof(DataFile.Reader);
             reader
-                .on('data', function(data) {
+                .on('readable', function() {
 					//console.error('data()');
-                    data.should.equal("testing");
+                    reader.read().should.equal("testing");
                 })
                 .on('error', function(err) {
 					//console.error('error()');
@@ -315,7 +314,7 @@ describe('Writer()', function(){
         if (fs.existsSync(dataFile)) fs.unlinkSync(dataFile);
     });
     it('should write data to a file stream using a pipe', function(done){
-        var schema = "string";
+        var schema = {type: 'string'};
         var fileStream = fs.createWriteStream(dataFile);
         var writer = DataFile.Writer(schema, "null");
         writer.pipe(fileStream);
@@ -323,11 +322,11 @@ describe('Writer()', function(){
             .on('error', function(err) {
                 done(err);
             })
-            .on('close', function() {
+            .on('finish', function() {
                 fs.existsSync(dataFile).should.be.true;
                 done();
             });
-        writer.append("hello world");
+        writer.write("hello world");
         writer.end();
     });      
     it('should read back data from the written file', function(done){
@@ -335,8 +334,8 @@ describe('Writer()', function(){
         var fileStream = fs.createReadStream(dataFile);
         fileStream.pipe(reader);
         reader
-            .on('data', function(data) {
-                data.should.equal("hello world");
+            .on('readable', function() {
+                reader.read().should.equal("hello world");
             })
             .on('error', function(err) {
                 done(err);
@@ -379,7 +378,7 @@ describe('Writer()', function(){
         var fileStream = fs.createWriteStream(dataFile);
         writer.pipe(fileStream);
         writer
-            .on('close', function() {
+            .on('finish', function() {
                 fs.existsSync(dataFile).should.be.true;
                 fs.unlinkSync(dataFile);
                 done();
@@ -391,7 +390,7 @@ describe('Writer()', function(){
         var i = 0;
         var delay = 0;
         while(i++ < 20) {
-            writer.append(schemaGenerator());
+            writer.write(schemaGenerator());
         }
         writer.end();
     });
@@ -438,21 +437,21 @@ describe('Writer()', function(){
     });
     describe('write()', function() {
         it('should write a schema and associated data to a file', function(done) {
-            var schema = "string";  //{ "type": "string" };
+            var schema = {type: "string"};
             var data = "The quick brown fox jumped over the lazy dogs";
             var writer = avroFile.open(dataFile, schema, { flags: 'w', codec: "deflate" });
             writer
                 .on('error', function(err) {
                     done(err);
                 })
-                .on('close', function() {
+                .on('finish', function() {
                     fs.existsSync(dataFile).should.be.true;
                     done();
-                })
-                .append(data)
-                .append(data)
-                .append(data)
-                .end();
+                });
+            writer.write(data);
+            writer.write(data);
+            writer.write(data);
+            writer.end();
         });
         it('should write a series of integers to a file and read them back as integers', function(done) {
             aFile = __dirname + "/../test/data/test.int.avro";
@@ -462,29 +461,31 @@ describe('Writer()', function(){
                 .on('error', function(err) {
                     done(err);
                 })
-                .on('close', function() {
+                .on('finish', function() {
                     fs.existsSync(aFile).should.be.true;
-                    var reader = avroFile.open(aFile, null, { flags: 'r' });
-                    reader.should.be.an.instanceof(DataFile.Reader);
-                    var results = [];
-                    reader
-                        .on('data', function(data) {
-                            results.push(data);
-                        })
-                        .on('error', function(err) {
-                            console.error(err);
-                            done(err);
-                        })
-                        .on('end', function() {
-                            results.should.eql([1,14,0,552]);
-                            done();
-                        });
-                })
-                .append(1)
-                .append(14)
-                .append(0)
-                .append(552)
-                .end();
+                    setTimeout(function() {
+                        var reader = avroFile.open(aFile, null, { flags: 'r' });
+                        reader.should.be.an.instanceof(DataFile.Reader);
+                        var results = [];
+                        reader
+                            .on('readable', function() {
+                                results.push(reader.read());
+                            })
+                            .on('error', function(err) {
+                                console.error(err);
+                                done(err);
+                            })
+                            .on('end', function() {
+                                results.should.eql([1,14,0,552]);
+                                done();
+                            });
+                    }, 500);
+                });
+            writer.write(1);
+            writer.write(14);
+            writer.write(0);
+            writer.write(552);
+            writer.end();
         });
     });
 });
@@ -497,7 +498,8 @@ describe('Reader()', function(){
             var count = 0;
             var fileStream = fs.createReadStream(__dirname + "/data/log.deflate.avro");
 
-            fileStream.pipe(DataFile.Reader())
+            reader = fileStream.pipe(DataFile.Reader());
+            reader
                 .on('error', function(err) {
                     done(err);
                 })
@@ -509,7 +511,8 @@ describe('Reader()', function(){
                     //console.log('\nHeader\n',util.inspect(data, {colors:true, depth:null}));
                     data.should.not
                 })
-                .on('data', function(data) {
+                .on('readable', function() {
+                    reader.read();
                     count++;
                     //console.log(data.time, data.request.path, data.request.body.rememberMe || '[]' , data.response.status);
                 });
@@ -520,7 +523,8 @@ describe('Reader()', function(){
             var count = 0;
             var fileStream = fs.createReadStream(__dirname + "/data/log.snappy.avro");
 
-            fileStream.pipe(DataFile.Reader())
+            reader = fileStream.pipe(DataFile.Reader());
+            reader
                 .on('error', function(err) {
                     done(err);
                 })
@@ -531,7 +535,8 @@ describe('Reader()', function(){
                 .on('header', function(data) {
                     //console.log('\nHeader\n',util.inspect(data, {colors:true, depth:null}));
                 })
-                .on('data', function(data) {
+                .on('readable', function() {
+                    reader.read();
                     count++;
                     //console.log(data.time, data.request.path, data.request.body.rememberMe || '[]' , data.response.status);
                 });
@@ -576,7 +581,7 @@ describe('Reader()', function(){
         it('should read an avro data file written and return the same data', function(done){
             
             var dataFile = __dirname + "/data/test-array-strings.avro";
-            var schema = "string";
+            var schema = {type: 'string'};
             var fileStream = fs.createWriteStream(dataFile);
             var writer = DataFile.Writer(schema);
             var source = [
@@ -589,16 +594,16 @@ describe('Reader()', function(){
                 .on('error', function(err) {
                     done(err);
                 })
-                .on('close', function() {
+                .on('finish', function() {
 
                     var fileStream = fs.createReadStream(dataFile);
                     var reader = fileStream.pipe(DataFile.Reader());
 
-		            reader.should.be.an.instanceof(DataFile.Reader);
+                    reader.should.be.an.instanceof(DataFile.Reader);
 		            var count = 0;
 		            reader
-						.on('data', function(data) {
-		                	data.should.equal(source[count++]);
+						.on('readable', function() {
+		                	reader.read().should.equal(source[count++]);
 		            	})
 						.on('error', function(err) {
 							console.error(err);
@@ -611,11 +616,11 @@ describe('Reader()', function(){
 						    count.should.equal(3);
 						    done();
 						});
-                })
-                .append(source[0])
-                .append(source[1])
-                .append(source[2])         
-                .end();
+                });
+            writer.write(source[0]);
+            writer.write(source[1]);
+            writer.write(source[2]);
+            writer.end();
                 
         });
     });
