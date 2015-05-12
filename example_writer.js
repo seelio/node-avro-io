@@ -6,10 +6,10 @@ var schema = {
                 {"name":"key","type": "string"},
                 {"name":"value","type": "string"},
                 {"name":"flag","type": "boolean"},
-				{"name":"subrecord","type":"record","fields":[
-					{"name":"key","type":"string"},
-					{"name":"value","type":["string","int","null"]}
-				]}
+                {"name":"subrecord","type":"record","fields":[
+                    {"name":"key","type":"string"},
+                    {"name":"value","type":["string","int","null"]}
+                ]}
             ]
 };
 var writer = avro.open("test.avro", schema, { flags: 'w', codec: 'deflate' });
