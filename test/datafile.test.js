@@ -39,18 +39,18 @@ describe('AvroFile', function(){
             reader.should.be.an.instanceof(DataFile.Reader);
             reader
                 .on('readable', function() {
-					//console.error('data()');
+                    //console.error('data()');
                     reader.read().should.equal("testing");
                 })
                 .on('error', function(err) {
-					//console.error('error()');
+                    //console.error('error()');
                     if (fs.existsSync(dataFile)) fs.unlinkSync(dataFile);
                     done(err);
                 })
-				.on('end', function() {
-					//console.error('end()');
+                .on('end', function() {
+                    //console.error('end()');
                     done();
-				});
+                });
         });
         it('should throw an error if an unsupported codec is passed as an option', function(){
             (function() {
@@ -498,7 +498,7 @@ describe('Reader()', function(){
             var count = 0;
             var fileStream = fs.createReadStream(__dirname + "/data/log.deflate.avro");
 
-            reader = fileStream.pipe(DataFile.Reader());
+            var reader = fileStream.pipe(DataFile.Reader());
             reader
                 .on('error', function(err) {
                     done(err);
@@ -523,7 +523,7 @@ describe('Reader()', function(){
             var count = 0;
             var fileStream = fs.createReadStream(__dirname + "/data/log.snappy.avro");
 
-            reader = fileStream.pipe(DataFile.Reader());
+            var reader = fileStream.pipe(DataFile.Reader());
             reader
                 .on('error', function(err) {
                     done(err);
@@ -600,22 +600,22 @@ describe('Reader()', function(){
                     var reader = fileStream.pipe(DataFile.Reader());
 
                     reader.should.be.an.instanceof(DataFile.Reader);
-		            var count = 0;
-		            reader
-						.on('readable', function() {
-		                	reader.read().should.equal(source[count++]);
-		            	})
-						.on('error', function(err) {
-							console.error(err);
-							done(err);
-						})
+                    var count = 0;
+                    reader
+                        .on('readable', function() {
+                            reader.read().should.equal(source[count++]);
+                        })
+                        .on('error', function(err) {
+                            console.error(err);
+                            done(err);
+                        })
                         .on('header', function(data) {
                             //console.log(data);
                         })
-						.on('end', function() {
-						    count.should.equal(3);
-						    done();
-						});
+                        .on('end', function() {
+                            count.should.equal(3);
+                            done();
+                        });
                 });
             writer.write(source[0]);
             writer.write(source[1]);
