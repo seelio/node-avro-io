@@ -304,7 +304,21 @@ describe('IO', function(){
             var schema = Avro.Schema("long");
             var writer = IO.DatumWriter(schema);
             writer.writersSchema.should.equal(schema);
-        })
+        });
+        describe('writeData()', function(){
+            it('should encode a Long using zig-zag encoding', function(){
+                var schema = Avro.Schema('long');
+                var block = DataFile.Block();
+                var writer = IO.DatumWriter(schema);
+                var encoder = IO.BinaryEncoder(block);
+
+                writer.write(Long.fromNumber(4), encoder);
+                block.toBuffer()[0].should.equal(8);
+                writer.write(Long.fromNumber(138), encoder);
+                block.toBuffer()[1].should.equal(148);
+                block.toBuffer()[2].should.equal(2);
+            });
+        });
         describe('writeFixed()', function(){
             it('should add a series of bytes specified by the schema', function(){
                 var schema = Avro.Schema({
