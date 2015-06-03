@@ -524,7 +524,7 @@ describe('IO', function(){
                     "type" : "record",
                     "name" : "IntStringRecord",
                     "fields" : [ { "name" : "intField", "type" : "int", "default": 1 },
-                                 { "name" : "longField", "type" : "long", "default" : 2 },
+                                 { "name" : "longField", "type" : "long", "default" : 134217728 },
                                  { "name" : "floatField", "type" : "float", "default" : 3.0 },
                                  { "name" : "doubleField", "type" : "double", "default" : 4.0 },
                                  { "name" : "stringField", "type" : "string", "default" : "abc" }]
@@ -535,7 +535,7 @@ describe('IO', function(){
                 var record = {};
                 
                 writer.write(record, encoder);
-                block.toBuffer().toString().should.equal("\u0002\u0004\u0000\u0000@@\u0000\u0000\u0000\u0000\u0000\u0000\u0010@\u0006abc");
+                block.toBuffer().toString('hex').should.equal("02808080800100004040000000000000104006616263");
             });
             it('should encode a union as a long of the zero-based schema position, followed by the value according to the schema at that position', function(){
                 var schema = Avro.Schema([
