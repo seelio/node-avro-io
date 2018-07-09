@@ -1,7 +1,7 @@
 var _ = require('underscore');
 var should = require('should');
 require('buffertools').extend();
-var Long = require('long');
+var Long = require('../lib/long');
 
 var libpath = process.env['MOCHA_COV'] ? __dirname + '/../lib-cov/' : __dirname + '/../lib/';
 var IO = require(libpath + 'io');
